@@ -1,44 +1,43 @@
 import http from "http";
-import WebSocket from "ws";
+import SocketIO from "socket.io";
 import express from "express";
 
 const app = express();
+const PORT = 5500;
 
 app.set("view engine", "pug");
 app.set("views", __dirname + "/views");
 app.use("/public", express.static(__dirname + "/public"));
-app.get("/", (_, res) => res.render("home"));
-app.get("/*", (_, res) => res.redirect("/"));
+app.get("/", (req, res) => res.render("home"));
+app.get("/*", (req, res) => res.redirect("/"));
 
-const handleListen = () => console.log(`Listening on http://localhost:3000`);
+const handleListen = () => {
+  console.log(`Listening on http://localhost:${PORT}`);
+};
 
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const httpServer = http.createServer(app);
+const wsServer = SocketIO(httpServer);
 
-const sockets = [];
-
-wss.on("connection", (backsocket) => {
+wsServer.on("connection", (backsocket) => {
   backsocket["nickname"] = "Anon";
-  sockets.push(backsocket);
-  console.log("Connected to Browser 👍");
-  backsocket.on("close", () => console.log("Disconnected from the Browser 👎"));
-  backsocket.on("message", (msg) => {
-    const message = JSON.parse(msg);
-    switch (message.type) {
-      case "new_message":
-        sockets.forEach((aSocket) =>
-          aSocket.send(
-            `${backsocket.nickname}: ${message.payload.toString("utf-8")}`
-          )
-        );
-        break;
-      case "nickname":
-        backsocket["nickname"] = message.payload;
-        break;
-      default:
-        console.log("There is something wrong");
-    }
+  backsocket.onAny((event) => {
+    console.log(`Socket Event: ${event}`);
   });
+  backsocket.on("enter_room", (roomName, done) => {
+    backsocket.join(roomName);
+    done();
+    backsocket.to(roomName).emit("welcome", backsocket.nickname);
+  });
+  backsocket.on("disconnecting", () => {
+    backsocket.rooms.forEach((room) =>
+      backsocket.to(room).emit("bye", backsocket.nickname)
+    );
+  });
+  backsocket.on("new_message", (msg, room, done) => {
+    backsocket.to(room).emit("new_message", `${backsocket.nickname}: ${msg}`);
+    done();
+  });
+  backsocket.on("nickname", (nickname) => (backsocket["nickname"] = nickname));
 });
 
-server.listen(process.env.PORT, handleListen);
+httpServer.listen(PORT, handleListen);
