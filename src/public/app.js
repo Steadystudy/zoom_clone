@@ -1,19 +1,23 @@
 const frontsocket = io();
 const welcome = document.querySelector("#welcome");
-const welcomeForm = welcome.querySelector("form");
-const room = document.querySelector("#room");
+const room_name = welcome.querySelector("#room_name");
+const chat_room = document.querySelector("#chat_room");
+const nameForm = welcome.querySelector("#name");
 
-room.hidden = true;
+chat_room.hidden = true;
+
+let roomName;
+let nick;
 
 function addMessage(message) {
-  const ul = room.querySelector("ul");
+  const ul = chat_room.querySelector("ul");
   const li = document.createElement("li");
   li.innerText = message;
   ul.appendChild(li);
 }
 
 function handleMessageSubmit(event) {
-  const roomInput = room.querySelector("#msg input");
+  const roomInput = chat_room.querySelector("#msg input");
   event.preventDefault();
   const value = roomInput.value;
   frontsocket.emit("new_message", roomInput.value, roomName, () => {
@@ -24,32 +28,35 @@ function handleMessageSubmit(event) {
 
 function handleNicknameSubmit(event) {
   event.preventDefault();
-  const nickname = room.querySelector("#name input");
+  const nickname = welcome.querySelector("#name input");
   frontsocket.emit("nickname", nickname.value);
+  nick = nickname.value;
+  nickname.value = "";
 }
 
 function showRoom() {
   welcome.hidden = true;
-  room.hidden = false;
-  const h3 = room.querySelector("h3");
+  chat_room.hidden = false;
+  const h3 = chat_room.querySelector("h3");
   h3.innerText = `Room ${roomName}`;
-  const msgForm = room.querySelector("#msg");
-  const nameForm = room.querySelector("#name");
+  const msgForm = chat_room.querySelector("#msg");
   msgForm.addEventListener("submit", handleMessageSubmit);
-  nameForm.addEventListener("submit", handleNicknameSubmit);
 }
 
-let roomName;
-
-function handleRoomSubmit(event) {
+function handleWelcomeForm(event) {
   event.preventDefault();
-  const input = welcomeForm.querySelector("input");
-  frontsocket.emit("enter_room", input.value, showRoom);
-  roomName = input.value;
-  input.value = "";
+  if (nick) {
+    const room_name_input = room_name.querySelector("input");
+    frontsocket.emit("enter_room", room_name_input.value, showRoom);
+    roomName = room_name_input.value;
+    room_name_input.value = "";
+  } else {
+    alert("nickname is required");
+  }
 }
 
-welcomeForm.addEventListener("submit", handleRoomSubmit);
+nameForm.addEventListener("submit", handleNicknameSubmit);
+room_name.addEventListener("submit", handleWelcomeForm);
 
 frontsocket.on("welcome", (user) => {
   addMessage(`${user} joined`);

@@ -19,7 +19,7 @@ const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
 wsServer.on("connection", (backsocket) => {
-  backsocket["nickname"] = "Anon";
+  backsocket["nickname"] = "";
   backsocket.onAny((event) => {
     console.log(`Socket Event: ${event}`);
   });
