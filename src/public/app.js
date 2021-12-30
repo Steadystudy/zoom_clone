@@ -13,8 +13,8 @@ function addMessage(message) {
 }
 
 function handleMessageSubmit(event) {
-  event.preventDefault();
   const roomInput = room.querySelector("#msg input");
+  event.preventDefault();
   const value = roomInput.value;
   frontsocket.emit("new_message", roomInput.value, roomName, () => {
     addMessage(`You: ${value}`);
@@ -51,12 +51,12 @@ function handleRoomSubmit(event) {
 
 welcomeForm.addEventListener("submit", handleRoomSubmit);
 
-frontsocket.on("welcome", () => {
-  addMessage("Someone joined");
+frontsocket.on("welcome", (user) => {
+  addMessage(`${user} joined`);
 });
 
-frontsocket.on("bye", () => {
-  addMessage("Someone left");
+frontsocket.on("bye", (left) => {
+  addMessage(`${left} left`);
 });
 
 frontsocket.on("new_message", addMessage);
