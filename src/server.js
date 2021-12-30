@@ -18,6 +18,25 @@ const handleListen = () => {
 const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
+function publicRooms() {
+  const {
+    sockets: {
+      adapter: { sids, rooms },
+    },
+  } = wsServer;
+  const publicRooms = [];
+  rooms.forEach((_, key) => {
+    if (sids.get(key) === undefined) {
+      publicRooms.push(key);
+    }
+  });
+  return publicRooms;
+}
+
+function countRoom(roomName) {
+  return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
+
 wsServer.on("connection", (backsocket) => {
   backsocket["nickname"] = "";
   backsocket.onAny((event) => {
@@ -26,12 +45,18 @@ wsServer.on("connection", (backsocket) => {
   backsocket.on("enter_room", (roomName, done) => {
     backsocket.join(roomName);
     done();
-    backsocket.to(roomName).emit("welcome", backsocket.nickname);
+    backsocket
+      .to(roomName)
+      .emit("welcome", backsocket.nickname, countRoom(roomName));
+    wsServer.sockets.emit("room_change", publicRooms());
   });
   backsocket.on("disconnecting", () => {
     backsocket.rooms.forEach((room) =>
-      backsocket.to(room).emit("bye", backsocket.nickname)
+      backsocket.to(room).emit("bye", backsocket.nickname, countRoom(room) - 1)
     );
+  });
+  backsocket.on("disconnect", () => {
+    wsServer.sockets.emit("room_change", publicRooms());
   });
   backsocket.on("new_message", (msg, room, done) => {
     backsocket.to(room).emit("new_message", `${backsocket.nickname}: ${msg}`);
