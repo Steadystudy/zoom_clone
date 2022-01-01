@@ -18,4 +18,12 @@ const handleListen = () => {
 const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
+wsServer.on("connection", (backsocket) => {
+  backsocket.on("join_room", (roomName, done) => {
+    backsocket.join(roomName);
+    done();
+    frontsocket.to(roomName).emit("welcome");
+  });
+});
+
 httpServer.listen(PORT, handleListen);
