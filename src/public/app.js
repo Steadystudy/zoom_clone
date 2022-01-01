@@ -1,89 +1,68 @@
 const frontsocket = io();
-const welcome = document.querySelector("#welcome");
-const room_name = welcome.querySelector("#room_name");
-const chat_room = document.querySelector("#chat_room");
-const nameForm = welcome.querySelector("#name");
 
-chat_room.hidden = true;
+const myFace = document.getElementById("myFace");
+const muteBtn = document.getElementById("mute");
+const cameraBtn = document.getElementById("camera");
+const camerasSelect = document.getElementById("cameras");
 
-let roomName;
-let nick;
+let myStream;
+let muted = false;
+let cameraoff = false;
 
-function addMessage(message) {
-  const ul = chat_room.querySelector("ul");
-  const li = document.createElement("li");
-  li.innerText = message;
-  ul.appendChild(li);
+async function getCameras() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter((device) => device.kind === "videoinput");
+    cameras.forEach((camera) => {
+      const option = document.createElement(option);
+      option.value = camera.deviceId;
+      option.innerText = camera.label;
+      camerasSelect.appendChild(option);
+    });
+  } catch (e) {
+    console.log(e);
+  }
 }
 
-function handleMessageSubmit(event) {
-  const roomInput = chat_room.querySelector("#msg input");
-  event.preventDefault();
-  const value = roomInput.value;
-  frontsocket.emit("new_message", roomInput.value, roomName, () => {
-    addMessage(`You: ${value}`);
-  });
-  roomInput.value = "";
+async function getMedia() {
+  try {
+    myStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+    myFace.srcObject = myStream;
+    await getCameras();
+  } catch (e) {
+    console.log(e);
+  }
 }
 
-function handleNicknameSubmit(event) {
-  event.preventDefault();
-  const nickname = welcome.querySelector("#name input");
-  frontsocket.emit("nickname", nickname.value);
-  nick = nickname.value;
-  nickname.value = "";
-}
+getMedia();
 
-function showRoom() {
-  welcome.hidden = true;
-  chat_room.hidden = false;
-  const h3 = chat_room.querySelector("h3");
-  h3.innerText = `Room ${roomName}`;
-  const msgForm = chat_room.querySelector("#msg");
-  msgForm.addEventListener("submit", handleMessageSubmit);
-}
-
-function handleWelcomeForm(event) {
-  event.preventDefault();
-  if (nick) {
-    const room_name_input = room_name.querySelector("input");
-    frontsocket.emit("enter_room", room_name_input.value, showRoom);
-    roomName = room_name_input.value;
-    room_name_input.value = "";
+function handleMuteClick() {
+  myStream
+    .getAudioTracks()
+    .forEach((track) => (track.enabled = !track.enabled));
+  if (!muted) {
+    muteBtn.innerText = "Unmute";
+    muted = true;
   } else {
-    alert("nickname is required");
+    muteBtn.innerText = "Mute";
+    muted = false;
   }
 }
 
-nameForm.addEventListener("submit", handleNicknameSubmit);
-room_name.addEventListener("submit", handleWelcomeForm);
-
-function countUsers(newCount) {
-  const h3 = chat_room.querySelector("h3");
-  h3.innerText = `Room ${roomName} (${newCount})`;
-}
-
-frontsocket.on("welcome", (user, newCount) => {
-  countUsers(newCount);
-  addMessage(`${user} joined`);
-});
-
-frontsocket.on("bye", (left, newCount) => {
-  countUsers(newCount);
-  addMessage(`${left} left`);
-});
-
-frontsocket.on("new_message", addMessage);
-
-frontsocket.on("room_change", (rooms) => {
-  const roomList = welcome.querySelector("ul");
-  roomList.innerHTML = "";
-  if (rooms.length === 0) {
-    return;
+function handleCameraClick() {
+  myStream
+    .getVideoTracks()
+    .forEach((track) => (track.enabled = !track.enabled));
+  if (cameraoff) {
+    cameraBtn.innerText = "Turn the camera off";
+    cameraoff = false;
+  } else {
+    cameraBtn.innerText = "Turn the camera on";
+    cameraoff = true;
   }
-  rooms.forEach((room) => {
-    const li = document.createElement("li");
-    li.innerText = room;
-    roomList.append(li);
-  });
-});
+}
+muteBtn.addEventListener("click", handleMuteClick);
+cameraBtn.addEventListener("click", handleCameraClick);
