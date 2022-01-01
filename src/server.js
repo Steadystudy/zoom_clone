@@ -22,7 +22,10 @@ wsServer.on("connection", (backsocket) => {
   backsocket.on("join_room", (roomName, done) => {
     backsocket.join(roomName);
     done();
-    frontsocket.to(roomName).emit("welcome");
+    backsocket.to(roomName).emit("welcome");
+  });
+  backsocket.on("offer", (offer, roomName) => {
+    backsocket.to(roomName).emit("offer", offer);
   });
 });
 
